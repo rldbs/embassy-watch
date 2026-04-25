@@ -154,6 +154,10 @@ ALL_SOURCES = [
 _cache = {"data": None, "built_at": 0}
 CACHE_TTL = 300
 
+# ── 뉴스 캐시 (1시간) ──
+_news_cache = {}
+NEWS_TTL = 3600
+
 def get_all_data():
     try:
         conn = get_db()
@@ -246,11 +250,18 @@ def get_stats():
 
 @app.route("/api/news/<country_name>")
 def get_news(country_name):
+    global _news_cache
+    now = time.time()
+
+    # 캐시 확인 (1시간)
+    if country_name in _news_cache and (now - _news_cache[country_name]["at"]) < NEWS_TTL:
+        return jsonify({"success":True,"data":_news_cache[country_name]["data"],"cached":True})
+
     try:
         en_name = EN_NAME.get(country_name, country_name)
         query = f"{en_name} embassy evacuation travel warning"
         url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=en&gl=US&ceid=US:en"
-        res = requests.get(url, timeout=10, headers={"User-Agent":"Mozilla/5.0"})
+        res = requests.get(url, timeout=8, headers={"User-Agent":"Mozilla/5.0"})
         root = ET.fromstring(res.content)
         items = []
         for item in root.findall(".//item")[:5]:
@@ -260,6 +271,8 @@ def get_news(country_name):
                 "pub_date": item.findtext("pubDate",""),
                 "source": item.findtext("source","")
             })
+        # 캐시 저장
+        _news_cache[country_name] = {"data": items, "at": now}
         return jsonify({"success":True,"data":items})
     except Exception as e:
         return jsonify({"success":False,"data":[]})
