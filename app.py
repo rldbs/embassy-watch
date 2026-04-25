@@ -5,6 +5,11 @@ import sqlite3
 import requests
 import xml.etree.ElementTree as ET
 from crawler import run_all_crawlers
+import time
+
+# ── 캐시 설정 ──
+_cache = {"data": None, "built_at": 0}
+CACHE_TTL = 300  # 5분 캐시
 
 app = Flask(__name__)
 app.json.ensure_ascii = False
@@ -193,7 +198,15 @@ def index():
 
 @app.route("/api/countries")
 def get_countries():
-    return jsonify({"success":True,"data":build_summary(get_all_data())})
+    global _cache
+    now = time.time()
+    # 캐시가 있고 TTL 안 지났으면 캐시 반환
+    if _cache["data"] and (now - _cache["built_at"]) < CACHE_TTL:
+        return jsonify({"success": True, "data": _cache["data"], "cached": True})
+    # 캐시 갱신
+    data = build_summary(get_all_data())
+    _cache = {"data": data, "built_at": now}
+    return jsonify({"success": True, "data": data, "cached": False})
 
 @app.route("/api/stats")
 def get_stats():
@@ -242,8 +255,17 @@ def get_history(country_name):
 
 @app.route("/api/crawl")
 def manual_crawl():
+    global _cache
     run_all_crawlers()
-    return jsonify({"success":True,"message":"크롤링 완료!"})
+    # 크롤링 후 캐시 초기화
+    _cache = {"data": None, "built_at": 0}
+    return jsonify({"success":True,"message":"크롤링 완료! 캐시 초기화됨"})
+
+@app.route("/api/cache/clear")
+def clear_cache():
+    global _cache
+    _cache = {"data": None, "built_at": 0}
+    return jsonify({"success":True,"message":"캐시 초기화 완료"})
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(run_all_crawlers,"interval",hours=6)
@@ -254,5 +276,5 @@ import os
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 서버 시작! http://localhost:{port}")
-    run_all_crawlers()
+    print("⏰ 크롤러는 6시간마다 자동 실행됩니다")
     app.run(debug=False, host="0.0.0.0", port=port)
