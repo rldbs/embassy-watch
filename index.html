@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>대사관 철수 현황</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--red:#c53030;--red-bg:#fff5f5;--red-bd:#fed7d7;--org:#c05621;--org-bg:#fffaf0;--org-bd:#feebc8;--grn:#276749;--grn-bg:#f0fff4;--grn-bd:#c6f6d5;--pri:#111;--gray:#f5f5f5;--bd:#eee}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5}
+.app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;padding-bottom:70px}
+.header{background:#fff;padding:.9rem 1.25rem .75rem;border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:100}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.app-title{font-size:17px;font-weight:700;color:var(--pri)}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.live-badge{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);font-weight:600}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.lang-btn{padding:4px 10px;border-radius:20px;font-size:12px;border:1px solid var(--bd);background:transparent;cursor:pointer;font-family:inherit;font-weight:600}
+.lang-btn.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--gray);border-radius:10px;padding:8px 12px;margin-bottom:10px}
+.search-bar input{border:none;background:transparent;font-size:14px;color:var(--pri);outline:none;flex:1;font-family:inherit}
+.filter-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.filter-row::-webkit-scrollbar{display:none}
+.fbtn{flex-shrink:0;padding:5px 14px;border-radius:20px;font-size:12px;border:1px solid var(--bd);background:transparent;color:#666;cursor:pointer;font-family:inherit}
+.fbtn.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}
+.alert-box{margin:8px 12px 0;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--red);line-height:1.5}
+.notif-box{margin:8px 12px 0;background:var(--org-bg);border:1px solid var(--org-bd);border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between}
+.notif-box span{font-size:12px;color:var(--org)}
+.notif-box button{padding:4px 12px;background:var(--org);color:#fff;border:none;border-radius:20px;font-size:12px;cursor:pointer;font-family:inherit}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 12px}
+.stat{background:var(--gray);border-radius:10px;padding:10px;text-align:center;cursor:pointer}
+.stat-num{font-size:22px;font-weight:700}
+.stat-num.r{color:var(--red)}.stat-num.o{color:var(--org)}.stat-num.g{color:var(--grn)}
+.stat-lbl{font-size:10px;color:#888;margin-top:2px}
+.legend{display:flex;gap:12px;padding:0 12px 6px}
+.leg{display:flex;align-items:center;gap:4px;font-size:11px;color:#666}
+.legdot{width:7px;height:7px;border-radius:50%}
+.sec-lbl{font-size:11px;font-weight:600;color:#999;padding:6px 12px 4px;letter-spacing:.05em;text-transform:uppercase}
+.clist{padding:0 10px 1rem;display:flex;flex-direction:column;gap:8px}
+.ccard{background:#fff;border-radius:14px;border:1px solid var(--bd);padding:12px 14px;cursor:pointer;transition:box-shadow .15s;position:relative}
+.ccard:hover{box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.ctop{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.flagimg{width:28px;height:20px;border-radius:3px;object-fit:cover;flex-shrink:0}
+.flagfb{width:28px;height:20px;background:#eee;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999;flex-shrink:0}
+.cname{font-size:14px;font-weight:600;color:var(--pri);flex:1}
+.lvl{flex-shrink:0;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.lvl-위험{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)}
+.lvl-주의요망{background:var(--org-bg);color:var(--org);border:1px solid var(--org-bd)}
+.lvl-안전{background:var(--grn-bg);color:var(--grn);border:1px solid var(--grn-bd)}
+.embs{display:flex;flex-wrap:wrap;gap:5px}
+.echip{display:flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;border:1px solid}
+.eflag{width:16px;height:11px;border-radius:2px;object-fit:cover}
+.e-red{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
+.e-yellow{background:var(--org-bg);border-color:var(--org-bd);color:var(--org)}
+.e-green{background:var(--grn-bg);border-color:var(--grn-bd);color:var(--grn)}
+.favbtn{position:absolute;top:12px;right:12px;background:none;border:none;font-size:18px;cursor:pointer;opacity:.4;transition:opacity .15s}
+.favbtn.on{opacity:1}
+#mapView{display:none}
+#map{height:calc(100vh - 180px)}
+#favView{display:none;padding:0 10px}
+.empty{text-align:center;padding:3rem;color:#aaa;font-size:14px;white-space:pre-line}
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid var(--bd);display:flex;z-index:200}
+.nbtn{flex:1;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:#999;cursor:pointer;border:none;background:none;font-family:inherit}
+.nbtn.on{color:var(--pri)}
+.nicon{font-size:22px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:none;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:1.5rem 1.25rem 2rem;position:relative}
+.mhandle{width:40px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 1.25rem}
+.mhdr{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem}
+.mflag{width:40px;height:28px;border-radius:4px;object-fit:cover}
+.mcountry{font-size:20px;font-weight:700;flex:1}
+.mlvl{padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600}
+.msec{margin-bottom:1.25rem}
+.msec-title{font-size:12px;font-weight:700;color:#999;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px}
+.news-item{padding:10px 0;border-bottom:1px solid var(--bd)}
+.news-item:last-child{border-bottom:none}
+.news-title{font-size:13px;font-weight:500;color:var(--pri);line-height:1.4;margin-bottom:4px}
+.news-title a{color:inherit;text-decoration:none}
+.news-title a:hover{text-decoration:underline}
+.news-meta{font-size:11px;color:#aaa}
+.hist-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12px}
+.hist-item:last-child{border-bottom:none}
+.pill{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.pill-red{background:var(--red-bg);color:var(--red)}
+.pill-yellow{background:var(--org-bg);color:var(--org)}
+.pill-green{background:var(--grn-bg);color:var(--grn)}
+.mclose{position:absolute;top:1rem;right:1rem;background:var(--gray);border:none;border-radius:50%;width:30px;height:30px;font-size:16px;cursor:pointer}
+.loading{text-align:center;padding:1.5rem;color:#aaa;font-size:13px}
+.spin{width:24px;height:24px;border:2px solid #eee;border-top-color:#666;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.pg-info{text-align:center;font-size:12px;color:#999;margin:4px 0 10px}
+.pg-btns{display:flex;justify-content:center;align-items:center;gap:4px;padding:0 12px 16px}
+.pgbtn{min-width:36px;height:36px;border-radius:10px;border:1px solid var(--bd);background:#fff;font-size:14px;cursor:pointer;font-family:inherit;color:var(--pri);transition:all .15s}
+.pgbtn.on{background:var(--pri);color:#fff;border-color:var(--pri);font-weight:700}
+.pgbtn.disabled{opacity:.3;cursor:not-allowed}
+.pgbtn:hover:not(.on):not(.disabled){background:var(--gray)}
+.pgdot{color:#aaa;font-size:14px;padding:0 2px}
+#pagination{padding:8px 12px 0}
+
+.share-row{display:flex;gap:8px;margin-top:4px}
+.share-btn{flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--bd);background:var(--gray);font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;color:var(--pri);transition:background .15s}
+.share-btn:hover{background:#e8e8e8}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;white-space:nowrap}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <span class="app-title" id="T_title">🌍 대사관 철수 현황</span>
+      <div class="hdr-right">
+        <div class="live-badge"><span class="live-dot"></span><span id="T_live">실시간</span></div>
+        <button class="lang-btn on" onclick="setLang('ko')">KO</button>
+        <button class="lang-btn" onclick="setLang('en')">EN</button>
+      </div>
+    </div>
+    <div class="search-bar" id="searchBar">
+      <span style="color:#aaa">🔍</span>
+      <input type="text" id="searchInput" placeholder="나라 검색..." oninput="render()">
+    </div>
+    <div class="filter-row" id="filterRow">
+      <button class="fbtn on" onclick="setF('all',this)" id="T_all">전체</button>
+      <button class="fbtn" onclick="setF('위험',this)" id="T_danger">🔴 위험</button>
+      <button class="fbtn" onclick="setF('주의요망',this)" id="T_warn">🟡 주의요망</button>
+      <button class="fbtn" onclick="setF('안전',this)" id="T_safe">🟢 안전</button>
+    </div>
+  </div>
+
+  <div id="notifBox" class="notif-box" style="display:none">
+    <span id="T_notif">즐겨찾기 나라 알림을 받으시겠어요?</span>
+    <button onclick="reqNotif()">알림 허용</button>
+  </div>
+  <div id="alertBox" class="alert-box" style="display:none"></div>
+
+  <div id="listView">
+    <div class="stats">
+      <div class="stat" onclick="setF('위험',document.getElementById('T_danger'))"><div class="stat-num r" id="s1">-</div><div class="stat-lbl" id="T_sDanger">위험</div></div>
+      <div class="stat" onclick="setF('주의요망',document.getElementById('T_warn'))"><div class="stat-num o" id="s2">-</div><div class="stat-lbl" id="T_sWarn">주의요망</div></div>
+      <div class="stat" onclick="setF('안전',document.getElementById('T_safe'))"><div class="stat-num g" id="s3">-</div><div class="stat-lbl" id="T_sSafe">안전</div></div>
+    </div>
+    <div class="legend">
+      <div class="leg"><span class="legdot" style="background:#e53e3e"></span><span id="T_l1">철수 완료</span></div>
+      <div class="leg"><span class="legdot" style="background:#dd6b20"></span><span id="T_l2">철수 대기</span></div>
+      <div class="leg"><span class="legdot" style="background:#38a169"></span><span id="T_l3">정상 운영</span></div>
+    </div>
+    <div class="sec-lbl" id="T_section">국가별 현황</div>
+    <div class="clist" id="list"><div class="loading"><div class="spin"></div>데이터 불러오는 중...</div></div>
+    <div id="pagination"></div>
+  </div>
+
+  <div id="mapView"><div id="map"></div></div>
+  <div id="favView"><div class="clist" id="favList"></div></div>
+</div>
+
+<div class="bottom-nav">
+  <button class="nbtn on" onclick="switchTab('list',this)"><span class="nicon">📋</span><span id="T_navList">목록</span></button>
+  <button class="nbtn" onclick="switchTab('map',this)"><span class="nicon">🗺️</span><span id="T_navMap">지도</span></button>
+  <button class="nbtn" onclick="switchTab('fav',this)"><span class="nicon">⭐</span><span id="T_navFav">즐겨찾기</span></button>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeM(event)">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <button class="mclose" onclick="closeM()">✕</button>
+    <div class="mhdr">
+      <img class="mflag" id="mFlag" src="">
+      <span class="mcountry" id="mName"></span>
+      <span class="mlvl" id="mLvl"></span>
+    </div>
+    <div class="msec">
+      <div class="msec-title" id="T_mEmb">대사관 현황</div>
+      <div class="embs" id="mEmbs"></div>
+    </div>
+    <div class="msec">
+      <div class="msec-title" id="T_mNews">📰 최신 뉴스</div>
+      <div id="mNews"><div class="loading"><div class="spin"></div></div></div>
+    </div>
+    <div class="msec">
+      <div class="msec-title" id="T_mHist">📊 경보 변동 히스토리</div>
+      <div id="mHist"><div class="loading"><div class="spin"></div></div></div>
+    </div>
+    <div class="share-row">
+      <button class="share-btn" onclick="shareCountry('kakaotalk')">🟡 카카오톡</button>
+      <button class="share-btn" onclick="shareCountry('twitter')">🐦 X(트위터)</button>
+      <button class="share-btn" onclick="shareCountry('copy')">🔗 링크 복사</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const API=window.location.hostname==='127.0.0.1'||window.location.hostname==='localhost'?'http://127.0.0.1:5000':'';
+let data=[],filt='all',tab='list',lang=localStorage.getItem('lang')||'ko',map=null,mapOK=false;
+
+const TX={
+  ko:{title:"🌍 대사관 철수 현황",live:"실시간",search:"나라 검색...",all:"전체",danger:"🔴 위험",warn:"🟡 주의요망",safe:"🟢 안전",sDanger:"위험",sWarn:"주의요망",sSafe:"안전",l1:"철수 완료",l2:"철수 대기",l3:"정상 운영",section:"국가별 현황",navList:"목록",navMap:"지도",navFav:"즐겨찾기",mEmb:"대사관 현황",mNews:"📰 최신 뉴스",mHist:"📊 경보 변동 히스토리",noNews:"최근 뉴스가 없어요",noHist:"변동 기록이 없어요",notif:"즐겨찾기 나라 알림을 받으시겠어요?",favEmpty:"⭐ 즐겨찾기한 나라가 없어요\n목록에서 ⭐를 눌러 추가해보세요"},
+  en:{title:"🌍 Embassy Status Monitor",live:"Live",search:"Search country...",all:"All",danger:"🔴 Danger",warn:"🟡 Warning",safe:"🟢 Safe",sDanger:"Danger",sWarn:"Warning",sSafe:"Safe",l1:"Evacuated",l2:"On Alert",l3:"Operating",section:"Country Status",navList:"List",navMap:"Map",navFav:"Favorites",mEmb:"Embassy Status",mNews:"📰 Latest News",mHist:"📊 Status History",noNews:"No recent news",noHist:"No history yet",notif:"Get alerts for favorites?",favEmpty:"⭐ No favorites yet\nTap ⭐ to add countries"}
+};
+
+const COORDS={"우크라이나":[48.37,31.16],"러시아":[61.52,105.31],"수단":[12.86,30.21],"아이티":[18.97,-72.28],"아프가니스탄":[33.93,67.70],"시리아":[34.80,38.99],"예멘":[15.55,48.51],"소말리아":[5.15,46.19],"리비아":[26.33,17.22],"미얀마":[21.91,95.95],"이라크":[33.22,43.67],"이스라엘":[31.04,34.85],"북한":[40.33,127.51],"이란":[32.42,53.68],"파키스탄":[30.37,69.34],"남수단":[6.87,31.30],"베네수엘라":[6.42,-66.58],"말리":[17.57,-3.99],"니제르":[17.60,8.08],"벨라루스":[53.70,27.95],"에티오피아":[9.14,40.48],"레바논":[33.88,35.49],"부르키나파소":[12.36,-1.53],"중앙아프리카공화국":[6.61,20.93],"일본":[36.20,138.25],"중국":[35.86,104.19],"미국":[37.09,-95.71],"영국":[55.37,-3.43],"프랑스":[46.22,2.21],"독일":[51.16,10.45],"한국":[35.90,127.76],"호주":[-25.27,133.77],"인도":[20.59,78.96],"브라질":[-14.23,-51.92],"캐나다":[56.13,-106.34]};
+
+const CODE={"아프가니스탄":"af","알바니아":"al","알제리":"dz","앙골라":"ao","아르헨티나":"ar","아르메니아":"am","호주":"au","오스트리아":"at","아제르바이잔":"az","바레인":"bh","방글라데시":"bd","벨라루스":"by","벨기에":"be","볼리비아":"bo","보스니아 헤르체고비나":"ba","브라질":"br","브루나이":"bn","불가리아":"bg","부르키나파소":"bf","부룬디":"bi","캄보디아":"kh","카메룬":"cm","캐나다":"ca","중앙아프리카공화국":"cf","차드":"td","칠레":"cl","중국":"cn","콜롬비아":"co","콩고":"cg","콩고민주공화국":"cd","코스타리카":"cr","크로아티아":"hr","쿠바":"cu","키프로스":"cy","체코":"cz","덴마크":"dk","도미니카공화국":"do","에콰도르":"ec","이집트":"eg","엘살바도르":"sv","에티오피아":"et","핀란드":"fi","프랑스":"fr","가봉":"ga","감비아":"gm","조지아":"ge","독일":"de","가나":"gh","그리스":"gr","과테말라":"gt","기니":"gn","아이티":"ht","온두라스":"hn","홍콩":"hk","헝가리":"hu","아이슬란드":"is","인도":"in","인도네시아":"id","이란":"ir","이라크":"iq","아일랜드":"ie","이스라엘":"il","이탈리아":"it","자메이카":"jm","일본":"jp","요르단":"jo","카자흐스탄":"kz","케냐":"ke","쿠웨이트":"kw","키르기스스탄":"kg","라오스":"la","라트비아":"lv","레바논":"lb","라이베리아":"lr","리비아":"ly","리투아니아":"lt","룩셈부르크":"lu","마다가스카르":"mg","말레이시아":"my","말리":"ml","모리타니":"mr","멕시코":"mx","몰도바":"md","몽골":"mn","모로코":"ma","모잠비크":"mz","미얀마":"mm","나미비아":"na","네팔":"np","네덜란드":"nl","뉴질랜드":"nz","니카라과":"ni","니제르":"ne","나이지리아":"ng","북한":"kp","북마케도니아":"mk","노르웨이":"no","오만":"om","파키스탄":"pk","팔레스타인":"ps","파나마":"pa","파라과이":"py","페루":"pe","필리핀":"ph","폴란드":"pl","포르투갈":"pt","카타르":"qa","루마니아":"ro","러시아":"ru","르완다":"rw","사우디아라비아":"sa","세네갈":"sn","세르비아":"rs","싱가포르":"sg","슬로바키아":"sk","슬로베니아":"si","소말리아":"so","남아프리카공화국":"za","한국":"kr","남수단":"ss","스페인":"es","스리랑카":"lk","수단":"sd","스웨덴":"se","스위스":"ch","시리아":"sy","대만":"tw","타지키스탄":"tj","탄자니아":"tz","태국":"th","토고":"tg","튀니지":"tn","튀르키예":"tr","투르크메니스탄":"tm","우간다":"ug","우크라이나":"ua","아랍에미리트":"ae","우루과이":"uy","미국":"us","우즈베키스탄":"uz","베네수엘라":"ve","베트남":"vn","예멘":"ye","잠비아":"zm","짐바브웨":"zw","코트디부아르":"ci","베냉":"bj","레소토":"ls","말라위":"mw","몰디브":"mv","부르키나파소":"bf","에리트레아":"er","에스와티니":"sz"};
+const SC={"한국":"kr","미국":"us","영국":"gb","독일":"de","프랑스":"fr","일본":"jp"};
+const LVL_EN={"위험":"Danger","주의요망":"Warning","안전":"Safe"};
+const LBL_EN={"철수":"Out","대기":"Alert","운영":"OK"};
+const PILL={"red":"pill-red","yellow":"pill-yellow","green":"pill-green"};
+const SL={"red":"철수","yellow":"대기","green":"운영"};
+
+let favs=JSON.parse(localStorage.getItem('EFav')||'[]');
+function saveFav(){localStorage.setItem('EFav',JSON.stringify(favs))}
+function togFav(name,e){
+  e.stopPropagation();
+  favs=favs.includes(name)?favs.filter(f=>f!==name):[...favs,name];
+  if(!favs.includes(name)===false&&Notification.permission==='default')document.getElementById('notifBox').style.display='flex';
+  saveFav();render();renderFav();
+}
+function reqNotif(){Notification.requestPermission().then(()=>{document.getElementById('notifBox').style.display='none';})}
+
+function setLang(l){
+  lang=l;localStorage.setItem('lang',l);
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('on'));
+  event.target.classList.add('on');
+  applyT();render();
+}
+function applyT(){
+  const t=TX[lang];
+  ['title','live','sDanger','sWarn','sSafe','l1','l2','l3','section','navList','navMap','navFav','mEmb','mNews','mHist','notif'].forEach(k=>{
+    const el=document.getElementById('T_'+k);if(el)el.textContent=t[k];
+  });
+  document.getElementById('T_all').textContent=t.all;
+  document.getElementById('T_danger').textContent=t.danger;
+  document.getElementById('T_warn').textContent=t.warn;
+  document.getElementById('T_safe').textContent=t.safe;
+  document.getElementById('searchInput').placeholder=t.search;
+}
+
+function switchTab(t,el){
+  tab=t;
+  document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('on'));el.classList.add('on');
+  document.getElementById('listView').style.display=t==='list'?'block':'none';
+  document.getElementById('mapView').style.display=t==='map'?'block':'none';
+  document.getElementById('favView').style.display=t==='fav'?'block':'none';
+  document.getElementById('searchBar').style.display=t==='list'?'flex':'none';
+  document.getElementById('filterRow').style.display=t==='list'?'flex':'none';
+  if(t==='map')initMap();
+  if(t==='fav')renderFav();
+}
+
+function initMap(){
+  if(mapOK)return;mapOK=true;
+  map=L.map('map').setView([20,20],2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+  updateMarkers();
+}
+function updateMarkers(){
+  if(!map)return;
+  map.eachLayer(l=>{if(l instanceof L.CircleMarker)map.removeLayer(l);});
+  const COL={"위험":"#e53e3e","주의요망":"#dd6b20","안전":"#38a169"};
+  data.forEach(c=>{
+    const coord=COORDS[c.country_name];if(!coord)return;
+    const color=COL[c.level];
+    L.circleMarker(coord,{radius:c.level==="위험"?10:c.level==="주의요망"?7:5,fillColor:color,color:"#fff",weight:1.5,opacity:1,fillOpacity:.85})
+     .addTo(map)
+     .bindPopup(`<b>${lang==='ko'?c.country_name:c.country_name_en}</b><br><span style="color:${color}">${lang==='ko'?c.level:LVL_EN[c.level]}</span>`)
+     .on('click',()=>openM(c));
+  });
+}
+
+function renderFav(){
+  const fd=data.filter(c=>favs.includes(c.country_name));
+  document.getElementById('favList').innerHTML=fd.length?fd.map(c=>card(c)).join(''):
+    `<div class="empty">${TX[lang].favEmpty}</div>`;
+}
+
+function card(c){
+  const code=CODE[c.country_name];
+  const isFav=favs.includes(c.country_name);
+  const flag=code?`<img class="flagimg" src="https://flagcdn.com/w40/${code}.png" onerror="this.outerHTML='<div class=flagfb>${c.country_name.slice(0,2)}</div>'">`:`<div class="flagfb">${c.country_name.slice(0,2)}</div>`;
+  const name=lang==='ko'?c.country_name:c.country_name_en;
+  const lvlTxt=lang==='ko'?c.level:LVL_EN[c.level];
+  const chips=(c.embassies||[]).map(e=>{
+    const sc=SC[e.name];
+    const sf=sc?`<img class="eflag" src="https://flagcdn.com/w20/${sc}.png">`:'';
+    const lbl=lang==='ko'?e.label:LBL_EN[e.label]||e.label;
+    return `<div class="echip e-${e.status}">${sf}<span>${e.name} ${lbl}</span></div>`;
+  }).join('');
+  const cd=JSON.stringify(c).replace(/"/g,'&quot;');
+  return `<div class="ccard" onclick="openM(${cd})">
+    <button class="favbtn ${isFav?'on':''}" onclick="togFav('${c.country_name}',event)">${isFav?'⭐':'☆'}</button>
+    <div class="ctop">${flag}<span class="cname">${name}</span><span class="lvl lvl-${c.level}">${lvlTxt}</span></div>
+    <div class="embs">${chips}</div>
+  </div>`;
+}
+
+const PER_PAGE=20;
+let curPage=1,filteredData=[];
+
+function render(){
+  const q=document.getElementById('searchInput').value.trim();
+  const ord={"위험":0,"주의요망":1,"안전":2};
+  filteredData=data.filter(c=>{
+    const qL=q.toLowerCase();
+    const mQ=!q||
+      c.country_name.includes(q)||
+      (c.country_name_en||'').toLowerCase().includes(qL)||
+      (c.country_name||'').toLowerCase().includes(qL)||
+      // 초성 검색 지원
+      c.country_name.replace(/\s/g,'').includes(q.replace(/\s/g,''));
+    const mF=filt==='all'||c.level===filt;
+    return mQ&&mF;
+  }).sort((a,b)=>ord[a.level]-ord[b.level]||b.red_count-a.red_count);
+  curPage=1;
+  renderPage();
+}
+
+function renderPage(){
+  const total=filteredData.length;
+  const totalPages=Math.ceil(total/PER_PAGE)||1;
+  const start=(curPage-1)*PER_PAGE;
+  const pageData=filteredData.slice(start,start+PER_PAGE);
+  const listEl=document.getElementById('list');
+  if(!total){listEl.innerHTML='<div class="empty">검색 결과가 없어요</div>';document.getElementById('pagination').innerHTML='';return;}
+  listEl.innerHTML=pageData.map(c=>card(c)).join('');
+  window.scrollTo({top:0,behavior:'smooth'});
+  const pg=document.getElementById('pagination');
+  if(totalPages<=1){pg.innerHTML='';return;}
+  let btns='';
+  btns+=`<button class="pgbtn ${curPage===1?'disabled':''}" onclick="goPage(${curPage-1})">‹</button>`;
+  let sp=Math.max(1,curPage-2);
+  let ep=Math.min(totalPages,sp+4);
+  if(ep-sp<4)sp=Math.max(1,ep-4);
+  if(sp>1)btns+=`<button class="pgbtn" onclick="goPage(1)">1</button>${sp>2?'<span class="pgdot">…</span>':''}`;
+  for(let i=sp;i<=ep;i++)btns+=`<button class="pgbtn ${i===curPage?'on':''}" onclick="goPage(${i})">${i}</button>`;
+  if(ep<totalPages)btns+=`${ep<totalPages-1?'<span class="pgdot">…</span>':''}<button class="pgbtn" onclick="goPage(${totalPages})">${totalPages}</button>`;
+  btns+=`<button class="pgbtn ${curPage===totalPages?'disabled':''}" onclick="goPage(${curPage+1})">›</button>`;
+  pg.innerHTML=`<div class="pg-info">${lang==='ko'?`${total}개 국가 · ${curPage}/${totalPages} 페이지`:`${total} countries · Page ${curPage}/${totalPages}`}</div><div class="pg-btns">${btns}</div>`;
+}
+
+function goPage(p){
+  const tp=Math.ceil(filteredData.length/PER_PAGE)||1;
+  if(p<1||p>tp)return;
+  curPage=p;renderPage();
+}
+
+function setF(f,el){
+  filt=f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('on'));el.classList.add('on');
+  render();
+}
+
+function openM(c){
+  if(typeof c==='string')c=JSON.parse(c);
+  currentCountry=c;
+  const code=CODE[c.country_name];
+  document.getElementById('mFlag').src=code?`https://flagcdn.com/w40/${code}.png`:'';
+  document.getElementById('mName').textContent=lang==='ko'?c.country_name:c.country_name_en;
+  const ml=document.getElementById('mLvl');
+  const lvlTxt=lang==='ko'?c.level:LVL_EN[c.level];
+  ml.textContent=lvlTxt;ml.className=`mlvl lvl-${c.level}`;
+  document.getElementById('mEmbs').innerHTML=(c.embassies||[]).map(e=>{
+    const sc=SC[e.name];const sf=sc?`<img class="eflag" src="https://flagcdn.com/w20/${sc}.png">`:'';
+    const lbl=lang==='ko'?e.label:LBL_EN[e.label]||e.label;
+    return `<div class="echip e-${e.status}">${sf}<span>${e.name} ${lbl}</span></div>`;
+  }).join('');
+  document.getElementById('overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+
+  // 뉴스
+  document.getElementById('mNews').innerHTML='<div class="loading"><div class="spin"></div></div>';
+  fetch(`${API}/api/news/${encodeURIComponent(c.country_name)}`)
+    .then(r=>r.json()).then(d=>{
+      if(!d.data||!d.data.length){document.getElementById('mNews').innerHTML=`<div style="color:#aaa;font-size:13px;padding:8px 0">${TX[lang].noNews}</div>`;return;}
+      document.getElementById('mNews').innerHTML=d.data.map(n=>`
+        <div class="news-item">
+          <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
+          <div class="news-meta">${n.source||''} · ${n.pub_date?new Date(n.pub_date).toLocaleDateString():''}</div>
+        </div>`).join('');
+    }).catch(()=>{document.getElementById('mNews').innerHTML=`<div style="color:#aaa;font-size:13px;padding:8px 0">뉴스를 불러올 수 없어요</div>`;});
+
+  // 히스토리
+  document.getElementById('mHist').innerHTML='<div class="loading"><div class="spin"></div></div>';
+  fetch(`${API}/api/history/${encodeURIComponent(c.country_name)}`)
+    .then(r=>r.json()).then(d=>{
+      if(!d.data||!d.data.length){document.getElementById('mHist').innerHTML=`<div style="color:#aaa;font-size:13px;padding:8px 0">${TX[lang].noHist}</div>`;return;}
+      document.getElementById('mHist').innerHTML=d.data.map(h=>`
+        <div class="hist-item">
+          <span style="color:#aaa">${new Date(h.changed_at).toLocaleDateString()}</span>
+          <span style="color:#666">${h.source_country}</span>
+          <span class="pill ${PILL[h.old_status]}">${SL[h.old_status]||h.old_status}</span>
+          <span style="color:#aaa">→</span>
+          <span class="pill ${PILL[h.new_status]}">${SL[h.new_status]||h.new_status}</span>
+        </div>`).join('');
+    }).catch(()=>{document.getElementById('mHist').innerHTML=`<div style="color:#aaa;font-size:13px;padding:8px 0">히스토리를 불러올 수 없어요</div>`;});
+}
+
+let currentCountry=null;
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function shareCountry(type){
+  if(!currentCountry)return;
+  const name=lang==='ko'?currentCountry.country_name:currentCountry.country_name_en;
+  const lvl=lang==='ko'?currentCountry.level:{위험:"Danger",주의요망:"Warning",안전:"Safe"}[currentCountry.level];
+  const embs=(currentCountry.embassies||[]).map(e=>{
+    const lbl=lang==='ko'?e.label:{철수:"Evacuated",대기:"On Alert",운영:"Operating"}[e.label]||e.label;
+    return `${e.name}: ${lbl}`;
+  }).join(' | ');
+  const text=lang==='ko'
+    ?`🌍 ${name} 대사관 현황\n상태: ${lvl}\n\n${embs}\n\n대사관 철수 현황 앱에서 확인하세요`
+    :`🌍 ${name} Embassy Status\nLevel: ${lvl}\n\n${embs}\n\nCheck Embassy Watch App`;
+  const url=window.location.href;
+
+  if(type==='kakaotalk'){
+    // 카카오톡 공유 (클립보드 복사 후 안내)
+    navigator.clipboard.writeText(text+'\n'+url).then(()=>{
+      showToast('📋 텍스트 복사됨! 카카오톡에 붙여넣기 하세요');
+    });
+  } else if(type==='twitter'){
+    const twitterUrl=`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    window.open(twitterUrl,'_blank');
+  } else if(type==='copy'){
+    if(navigator.share){
+      navigator.share({title:`${name} 대사관 현황`,text:text,url:url}).catch(()=>{});
+    } else {
+      navigator.clipboard.writeText(text+'\n'+url).then(()=>{
+        showToast(lang==='ko'?'🔗 링크가 복사됐어요!':'🔗 Link copied!');
+      }).catch(()=>{
+        showToast(lang==='ko'?'복사 실패 😢':'Copy failed 😢');
+      });
+    }
+  }
+}
+
+function closeM(e){
+  if(e&&e.target!==document.getElementById('overlay'))return;
+  document.getElementById('overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+async function load(){
+  try{
+    const r=await fetch(`${API}/api/countries`);
+    const j=await r.json();
+    if(data.length>0&&Notification.permission==='granted'){
+      j.data.forEach(nc=>{
+        if(!favs.includes(nc.country_name))return;
+        const oc=data.find(c=>c.country_name===nc.country_name);
+        if(oc&&oc.level!==nc.level)new Notification(`🚨 ${nc.country_name}`,{body:`${oc.level} → ${nc.level}`,icon:`https://flagcdn.com/w40/${CODE[nc.country_name]||'un'}.png`});
+      });
+    }
+    data=j.data||[];
+    document.getElementById('s1').textContent=data.filter(c=>c.level==='위험').length;
+    document.getElementById('s2').textContent=data.filter(c=>c.level==='주의요망').length;
+    document.getElementById('s3').textContent=data.filter(c=>c.level==='안전').length;
+    const dang=data.filter(c=>c.level==='위험');
+    if(dang.length){document.getElementById('alertBox').textContent=`🚨 ${dang.slice(0,5).map(c=>c.country_name).join(', ')} 등 ${dang.length}개국 위험 단계`;document.getElementById('alertBox').style.display='block';}
+    render();
+    if(mapOK)updateMarkers();
+    if(tab==='fav')renderFav();
+  }catch(e){
+    document.getElementById('list').innerHTML='<div class="empty">⚠️ 서버에 연결할 수 없어요<br><small>app.py가 실행 중인지 확인하세요</small></div>';
+  }
+}
+
+applyT();
+if(Notification.permission==='default'&&favs.length>0)document.getElementById('notifBox').style.display='flex';
+load();
+setInterval(load,5*60*1000);
+</script>
+<div class="toast" id="toast"></div>
+</body>
+</html>
