@@ -320,19 +320,31 @@ scheduler.add_job(run_all_crawlers,"interval",hours=6)
 scheduler.start()
 
 if __name__ == "__main__":
+    import threading
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 서버 시작! http://localhost:{port}")
 
-    # DB 비어있으면 시드 데이터 자동 주입
+    # DB 비어있으면 시드 데이터 즉시 주입 (빠름)
     if not get_all_data():
-        print("📦 DB 비어있음 → 시드 데이터 주입 중...")
+        print("📦 시드 데이터 주입 중...")
         from seed_data import run_seed
         run_seed()
-        print("✅ 시드 데이터 완료!")
 
-    # 캐시 미리 채우기
+    # 캐시 미리 채우기 (즉시 응답 가능)
     _cache["data"] = build_summary(get_all_data())
     _cache["built_at"] = time.time()
-    print("✅ 캐시 준비 완료!")
+    print("✅ 준비 완료! 바로 응답 가능!")
+
+    # 크롤링은 백그라운드에서 (서버 응답 안 막음)
+    def background_crawl():
+        print("🔄 백그라운드 크롤링 시작...")
+        run_all_crawlers()
+        # 크롤링 완료 후 캐시 갱신
+        global _cache
+        _cache["data"] = build_summary(get_all_data())
+        _cache["built_at"] = time.time()
+        print("✅ 백그라운드 크롤링 완료! 캐시 갱신됨")
+
+    threading.Thread(target=background_crawl, daemon=True).start()
 
     app.run(debug=False, host="0.0.0.0", port=port)
