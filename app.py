@@ -1,19 +1,61 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
-import sqlite3
+import os
+import time
 import requests
 import xml.etree.ElementTree as ET
+import psycopg2
+import psycopg2.extras
 from crawler import run_all_crawlers
-import time
-
-# ── 캐시 설정 ──
-_cache = {"data": None, "built_at": 0}
-CACHE_TTL = 300  # 5분 캐시
 
 app = Flask(__name__)
 app.json.ensure_ascii = False
 CORS(app)
+
+# ── DB 연결 ──
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+def get_db():
+    if DATABASE_URL:
+        conn = psycopg2.connect(DATABASE_URL)
+    else:
+        import sqlite3
+        conn = sqlite3.connect("embassy.db")
+        conn.row_factory = sqlite3.Row
+    return conn
+
+def init_tables():
+    if DATABASE_URL:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS embassy_status (
+                id SERIAL PRIMARY KEY,
+                country_name TEXT,
+                source_country TEXT,
+                status TEXT,
+                status_label TEXT,
+                detail TEXT,
+                updated_at TEXT
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS status_history (
+                id SERIAL PRIMARY KEY,
+                country_name TEXT,
+                source_country TEXT,
+                old_status TEXT,
+                new_status TEXT,
+                changed_at TEXT
+            )
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+    print("✅ 테이블 초기화 완료")
+
+init_tables()
 
 FLAG_MAP = {
     "Afghanistan":"🇦🇫","Albania":"🇦🇱","Algeria":"🇩🇿","Angola":"🇦🇴","Argentina":"🇦🇷",
@@ -49,8 +91,8 @@ FLAG_MAP = {
     "Tunisia":"🇹🇳","Turkey":"🇹🇷","Turkmenistan":"🇹🇲","Uganda":"🇺🇬","Ukraine":"🇺🇦",
     "United Arab Emirates":"🇦🇪","Uruguay":"🇺🇾","USA":"🇺🇸","United States":"🇺🇸",
     "Uzbekistan":"🇺🇿","Venezuela":"🇻🇪","Vietnam":"🇻🇳","Yemen":"🇾🇪",
-    "Zambia":"🇿🇲","Zimbabwe":"🇿🇼","Côte d'Ivoire":"🇨🇮","Mali":"🇲🇱",
-    "Benin":"🇧🇯","Lesotho":"🇱🇸","Malawi":"🇲🇼","Maldives":"🇲🇻",
+    "Zambia":"🇿🇲","Zimbabwe":"🇿🇼","Côte d'Ivoire":"🇨🇮","Benin":"🇧🇯",
+    "Lesotho":"🇱🇸","Malawi":"🇲🇼","Maldives":"🇲🇻",
 }
 
 KO_NAME = {
@@ -101,43 +143,31 @@ KO_NAME = {
     "Lesotho":"레소토","Malawi":"말라위","Maldives":"몰디브",
 }
 
-EN_NAME = {v: k for k, v in KO_NAME.items()}  # 한글→영어 역매핑
-
+EN_NAME = {v: k for k, v in KO_NAME.items()}
 SOURCE_FLAG = {"한국":"🇰🇷","미국":"🇺🇸","영국":"🇬🇧","독일":"🇩🇪","프랑스":"🇫🇷","일본":"🇯🇵"}
 ALL_SOURCES = [
     {"name":"영국","flag":"🇬🇧"},{"name":"한국","flag":"🇰🇷"},{"name":"미국","flag":"🇺🇸"},
     {"name":"일본","flag":"🇯🇵"},{"name":"독일","flag":"🇩🇪"},{"name":"프랑스","flag":"🇫🇷"},
 ]
 
-def get_db():
-    conn = sqlite3.connect("embassy.db")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_history_table():
-    conn = get_db()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS status_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            country_name TEXT,
-            source_country TEXT,
-            old_status TEXT,
-            new_status TEXT,
-            changed_at TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-init_history_table()
+# ── 캐시 ──
+_cache = {"data": None, "built_at": 0}
+CACHE_TTL = 300
 
 def get_all_data():
     try:
         conn = get_db()
-        rows = conn.execute("SELECT * FROM embassy_status ORDER BY updated_at DESC").fetchall()
+        if DATABASE_URL:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            cur = conn.cursor()
+        cur.execute("SELECT * FROM embassy_status ORDER BY updated_at DESC")
+        rows = cur.fetchall()
+        cur.close()
         conn.close()
         return [dict(r) for r in rows]
-    except:
+    except Exception as e:
+        print(f"DB 오류: {e}")
         return []
 
 def build_summary(data):
@@ -162,10 +192,8 @@ def build_summary(data):
                 "status": row["status"],
                 "label": row["status_label"]
             }
-
     result = []
     for en, info in country_map.items():
-        # 데이터 없는 출처는 "운영"으로 채우기
         for src in ALL_SOURCES:
             if src["name"] not in info["embassies"]:
                 info["embassies"][src["name"]] = {
@@ -200,10 +228,8 @@ def index():
 def get_countries():
     global _cache
     now = time.time()
-    # 캐시가 있고 TTL 안 지났으면 캐시 반환
     if _cache["data"] and (now - _cache["built_at"]) < CACHE_TTL:
         return jsonify({"success": True, "data": _cache["data"], "cached": True})
-    # 캐시 갱신
     data = build_summary(get_all_data())
     _cache = {"data": data, "built_at": now}
     return jsonify({"success": True, "data": data, "cached": False})
@@ -221,7 +247,6 @@ def get_stats():
 @app.route("/api/news/<country_name>")
 def get_news(country_name):
     try:
-        # 한글 이름이면 영어로 변환
         en_name = EN_NAME.get(country_name, country_name)
         query = f"{en_name} embassy evacuation travel warning"
         url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=en&gl=US&ceid=US:en"
@@ -229,25 +254,36 @@ def get_news(country_name):
         root = ET.fromstring(res.content)
         items = []
         for item in root.findall(".//item")[:5]:
-            title = item.findtext("title","")
-            link = item.findtext("link","")
-            pub_date = item.findtext("pubDate","")
-            source = item.findtext("source","")
-            items.append({"title":title,"link":link,"pub_date":pub_date,"source":source})
+            items.append({
+                "title": item.findtext("title",""),
+                "link": item.findtext("link",""),
+                "pub_date": item.findtext("pubDate",""),
+                "source": item.findtext("source","")
+            })
         return jsonify({"success":True,"data":items})
     except Exception as e:
-        return jsonify({"success":False,"data":[],"error":str(e)})
+        return jsonify({"success":False,"data":[]})
 
 @app.route("/api/history/<country_name>")
 def get_history(country_name):
     try:
         en_name = EN_NAME.get(country_name, country_name)
         conn = get_db()
-        rows = conn.execute("""
+        if DATABASE_URL:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            cur = conn.cursor()
+        cur.execute("""
+            SELECT * FROM status_history
+            WHERE country_name = %s
+            ORDER BY changed_at DESC LIMIT 20
+        """ if DATABASE_URL else """
             SELECT * FROM status_history
             WHERE country_name = ?
             ORDER BY changed_at DESC LIMIT 20
-        """, (en_name,)).fetchall()
+        """, (en_name,))
+        rows = cur.fetchall()
+        cur.close()
         conn.close()
         return jsonify({"success":True,"data":[dict(r) for r in rows]})
     except Exception as e:
@@ -257,9 +293,8 @@ def get_history(country_name):
 def manual_crawl():
     global _cache
     run_all_crawlers()
-    # 크롤링 후 캐시 초기화
     _cache = {"data": None, "built_at": 0}
-    return jsonify({"success":True,"message":"크롤링 완료! 캐시 초기화됨"})
+    return jsonify({"success":True,"message":"크롤링 완료!"})
 
 @app.route("/api/cache/clear")
 def clear_cache():
@@ -271,15 +306,20 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(run_all_crawlers,"interval",hours=6)
 scheduler.start()
 
-import os
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 서버 시작! http://localhost:{port}")
-    print("⏰ 크롤러는 6시간마다 자동 실행됩니다")
+
+    # DB 비어있으면 시드 데이터 자동 주입
+    if not get_all_data():
+        print("📦 DB 비어있음 → 시드 데이터 주입 중...")
+        from seed_data import run_seed
+        run_seed()
+        print("✅ 시드 데이터 완료!")
+
     # 캐시 미리 채우기
-    import time
     _cache["data"] = build_summary(get_all_data())
     _cache["built_at"] = time.time()
     print("✅ 캐시 준비 완료!")
+
     app.run(debug=False, host="0.0.0.0", port=port)
