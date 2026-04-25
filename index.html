@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>대사관 철수 현황</title>
+<title>RunAway - 대사관 철수 현황</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -415,8 +415,8 @@ function shareCountry(type){
     return `${e.name}: ${lbl}`;
   }).join(' | ');
   const text=lang==='ko'
-    ?`🌍 ${name} 대사관 현황\n상태: ${lvl}\n\n${embs}\n\n대사관 철수 현황 앱에서 확인하세요`
-    :`🌍 ${name} Embassy Status\nLevel: ${lvl}\n\n${embs}\n\nCheck Embassy Watch App`;
+    ?`🌍 ${name} 대사관 현황\n상태: ${lvl}\n\n${embs}\n\nRunAway 앱에서 확인하세요`
+    :`🌍 ${name} Embassy Status\nLevel: ${lvl}\n\n${embs}\n\nCheck on RunAway App`;
   const url=window.location.href;
 
   if(type==='kakaotalk'){
