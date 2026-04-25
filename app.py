@@ -277,4 +277,9 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 서버 시작! http://localhost:{port}")
     print("⏰ 크롤러는 6시간마다 자동 실행됩니다")
+    # 캐시 미리 채우기
+    import time
+    _cache["data"] = build_summary(get_all_data())
+    _cache["built_at"] = time.time()
+    print("✅ 캐시 준비 완료!")
     app.run(debug=False, host="0.0.0.0", port=port)
