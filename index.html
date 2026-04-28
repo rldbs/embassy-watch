@@ -106,6 +106,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .share-btn:hover{background:#e8e8e8}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;white-space:nowrap}
 .toast.show{opacity:1}
+
+.report-write{background:var(--gray);border-radius:12px;padding:12px;margin-bottom:12px}
+.report-nick{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:8px;background:#fff}
+.report-text{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font-size:13px;font-family:inherit;resize:none;height:70px;background:#fff}
+.report-footer{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.report-count{font-size:11px;color:#aaa}
+.report-submit{padding:6px 16px;background:var(--pri);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600}
+.report-item{padding:10px 0;border-bottom:1px solid var(--bd)}
+.report-item:last-child{border-bottom:none}
+.report-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.report-nick-label{font-size:12px;font-weight:600;color:var(--pri)}
+.report-time{font-size:11px;color:#aaa}
+.report-content{font-size:13px;color:#333;line-height:1.5;margin-bottom:6px}
+.report-like{display:flex;align-items:center;gap:4px;font-size:12px;color:#aaa;cursor:pointer;border:none;background:none;font-family:inherit}
+.report-like:hover{color:var(--red)}
+.report-like.liked{color:var(--red)}
+.report-empty{text-align:center;padding:1.5rem;color:#aaa;font-size:13px}
 </style>
 </head>
 <body>
@@ -184,6 +201,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="msec-title" id="T_mHist">📊 경보 변동 히스토리</div>
       <div id="mHist"><div class="loading"><div class="spin"></div></div></div>
     </div>
+    <div class="msec">
+      <div class="msec-title">📢 현지 제보</div>
+      <div class="report-write">
+        <input class="report-nick" id="reportNick" placeholder="닉네임 (최대 20자)" maxlength="20">
+        <textarea class="report-text" id="reportText" placeholder="현지 상황을 제보해주세요 (최대 140자)" maxlength="140"></textarea>
+        <div class="report-footer">
+          <span class="report-count"><span id="reportCharCount">0</span>/140</span>
+          <button class="report-submit" onclick="submitReport()">제보하기</button>
+        </div>
+      </div>
+      <div id="reportList"><div class="loading"><div class="spin"></div></div></div>
+    </div>
     <div class="share-row">
       <button class="share-btn" onclick="shareCountry('kakaotalk')">🟡 카카오톡</button>
       <button class="share-btn" onclick="shareCountry('twitter')">🐦 X(트위터)</button>
@@ -194,7 +223,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const API=window.location.hostname==='127.0.0.1'||window.location.hostname==='localhost'?'http://127.0.0.1:5000':'https://web-production-bbd77.up.railway.app';
+const API=window.location.hostname==='127.0.0.1'||window.location.hostname==='localhost'?'http://127.0.0.1:5000':'';
 let data=[],filt='all',tab='list',lang=localStorage.getItem('lang')||'ko',map=null,mapOK=false;
 
 const TX={
@@ -356,6 +385,7 @@ function setF(f,el){
 function openM(c){
   if(typeof c==='string')c=JSON.parse(c);
   currentCountry=c;
+  currentCountryEn=c.country_name_en||c.country_name;
   const code=CODE[c.country_name];
   document.getElementById('mFlag').src=code?`https://flagcdn.com/w40/${code}.png`:'';
   document.getElementById('mName').textContent=lang==='ko'?c.country_name:c.country_name_en;
@@ -369,6 +399,11 @@ function openM(c){
   }).join('');
   document.getElementById('overlay').classList.add('open');
   document.body.style.overflow='hidden';
+  // 저장된 닉네임 불러오기
+  const savedNick = localStorage.getItem('reportNick');
+  if(savedNick) document.getElementById('reportNick').value = savedNick;
+  // 제보 로드
+  loadReports(c.country_name_en||c.country_name);
 
   // 뉴스
   document.getElementById('mNews').innerHTML='<div class="loading"><div class="spin"></div></div>';
@@ -399,6 +434,88 @@ function openM(c){
 }
 
 let currentCountry=null;
+let currentCountryEn = null;
+let likedReports = JSON.parse(localStorage.getItem('likedReports') || '[]');
+
+document.addEventListener('DOMContentLoaded', () => {
+  const rt = document.getElementById('reportText');
+  if(rt) rt.addEventListener('input', () => {
+    document.getElementById('reportCharCount').textContent = rt.value.length;
+  });
+});
+
+function loadReports(countryName) {
+  document.getElementById('reportList').innerHTML = '<div class="loading"><div class="spin"></div></div>';
+  fetch(`${API}/api/reports/${encodeURIComponent(countryName)}`)
+    .then(r => r.json()).then(d => {
+      if(!d.data || !d.data.length) {
+        document.getElementById('reportList').innerHTML = '<div class="report-empty">아직 제보가 없어요\n첫 번째 제보를 남겨보세요! 😊</div>';
+        return;
+      }
+      document.getElementById('reportList').innerHTML = d.data.map(r => {
+        const isLiked = likedReports.includes(r.id);
+        const date = new Date(r.created_at).toLocaleDateString('ko-KR', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        return `<div class="report-item">
+          <div class="report-header">
+            <span class="report-nick-label">✍️ ${r.nickname||'익명'}</span>
+            <span class="report-time">${date}</span>
+          </div>
+          <div class="report-content">${r.content}</div>
+          <button class="report-like ${isLiked?'liked':''}" onclick="likeReport(${r.id}, this)">
+            ❤️ ${r.likes||0}
+          </button>
+        </div>`;
+      }).join('');
+    }).catch(() => {
+      document.getElementById('reportList').innerHTML = '<div class="report-empty">제보를 불러올 수 없어요</div>';
+    });
+}
+
+function submitReport() {
+  const nick = document.getElementById('reportNick').value.trim() || '익명';
+  const content = document.getElementById('reportText').value.trim();
+  if(!content) { alert('내용을 입력해주세요!'); return; }
+  if(!currentCountryEn) return;
+
+  const btn = document.querySelector('.report-submit');
+  btn.textContent = '등록 중...';
+  btn.disabled = true;
+
+  fetch(`${API}/api/reports/${encodeURIComponent(currentCountryEn)}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({nickname: nick, content: content})
+  }).then(r => r.json()).then(d => {
+    if(d.success) {
+      document.getElementById('reportText').value = '';
+      document.getElementById('reportCharCount').textContent = '0';
+      loadReports(currentCountryEn);
+      // 닉네임 저장
+      localStorage.setItem('reportNick', nick);
+    } else {
+      alert(d.message || '오류가 발생했어요');
+    }
+  }).catch(() => alert('오류가 발생했어요'))
+  .finally(() => {
+    btn.textContent = '제보하기';
+    btn.disabled = false;
+  });
+}
+
+function likeReport(id, btn) {
+  if(likedReports.includes(id)) return;
+  fetch(`${API}/api/reports/${id}/like`, {method:'POST'})
+    .then(r => r.json()).then(d => {
+      if(d.success) {
+        likedReports.push(id);
+        localStorage.setItem('likedReports', JSON.stringify(likedReports));
+        btn.classList.add('liked');
+        const count = parseInt(btn.textContent.replace(/[^0-9]/g,'')) + 1;
+        btn.textContent = `❤️ ${count}`;
+      }
+    });
+}
+
 
 function showToast(msg){
   const t=document.getElementById('toast');
@@ -448,12 +565,7 @@ function closeM(e){
 
 async function load(){
   try{
-    const r=await fetch(`${API}/api/countries`,{
-      method:'GET',
-      headers:{'Accept':'application/json'},
-      mode:'cors'
-    });
-    if(!r.ok){throw new Error(`HTTP ${r.status}`);}
+    const r=await fetch(`${API}/api/countries`);
     const j=await r.json();
     if(data.length>0&&Notification.permission==='granted'){
       j.data.forEach(nc=>{

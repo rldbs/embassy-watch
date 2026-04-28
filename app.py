@@ -8,18 +8,12 @@ import xml.etree.ElementTree as ET
 import psycopg2
 import psycopg2.extras
 from crawler import run_all_crawlers
+from datetime import datetime
 
 app = Flask(__name__)
 app.json.ensure_ascii = False
 CORS(app)
-app.config['JSON_AS_ASCII'] = False
-app.json.ensure_ascii = False
 
-@app.after_request
-def after_request(response):
-    if response.headers.get('Content-Type', '').startswith('application/json'):
-        response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    return response
 # ── DB 연결 ──
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
@@ -33,9 +27,13 @@ def get_db():
     return conn
 
 def init_tables():
+    conn = get_db()
     if DATABASE_URL:
-        conn = get_db()
         cur = conn.cursor()
+    else:
+        cur = conn.cursor()
+    
+    if DATABASE_URL:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS embassy_status (
                 id SERIAL PRIMARY KEY,
@@ -57,9 +55,51 @@ def init_tables():
                 changed_at TEXT
             )
         """)
-        conn.commit()
-        cur.close()
-        conn.close()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS reports (
+                id SERIAL PRIMARY KEY,
+                country_name TEXT,
+                nickname TEXT,
+                content TEXT,
+                likes INTEGER DEFAULT 0,
+                created_at TEXT
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS embassy_status (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                country_name TEXT,
+                source_country TEXT,
+                status TEXT,
+                status_label TEXT,
+                detail TEXT,
+                updated_at TEXT
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS status_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                country_name TEXT,
+                source_country TEXT,
+                old_status TEXT,
+                new_status TEXT,
+                changed_at TEXT
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                country_name TEXT,
+                nickname TEXT,
+                content TEXT,
+                likes INTEGER DEFAULT 0,
+                created_at TEXT
+            )
+        """)
+    conn.commit()
+    cur.close()
+    conn.close()
     print("✅ 테이블 초기화 완료")
 
 init_tables()
@@ -321,6 +361,68 @@ def clear_cache():
     global _cache
     _cache = {"data": None, "built_at": 0}
     return jsonify({"success":True,"message":"캐시 초기화 완료"})
+
+# ── 제보 API ──
+@app.route("/api/reports/<country_name>", methods=["GET"])
+def get_reports(country_name):
+    try:
+        en_name = EN_NAME.get(country_name, country_name)
+        conn = get_db()
+        if DATABASE_URL:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("SELECT * FROM reports WHERE country_name = %s ORDER BY created_at DESC LIMIT 50", (en_name,))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM reports WHERE country_name = ? ORDER BY created_at DESC LIMIT 50", (en_name,))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify({"success":True,"data":[dict(r) for r in rows]})
+    except Exception as e:
+        return jsonify({"success":False,"data":[],"error":str(e)})
+
+@app.route("/api/reports/<country_name>", methods=["POST"])
+def add_report(country_name):
+    try:
+        en_name = EN_NAME.get(country_name, country_name)
+        body = request.get_json()
+        nickname = (body.get("nickname") or "익명").strip()[:20]
+        content = (body.get("content") or "").strip()[:140]
+        if not content:
+            return jsonify({"success":False,"message":"내용을 입력해주세요"})
+        now = datetime.now().isoformat()
+        conn = get_db()
+        if DATABASE_URL:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO reports (country_name, nickname, content, likes, created_at) VALUES (%s,%s,%s,0,%s)",
+                       (en_name, nickname, content, now))
+        else:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO reports (country_name, nickname, content, likes, created_at) VALUES (?,?,?,0,?)",
+                       (en_name, nickname, content, now))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"success":True,"message":"제보가 등록됐어요!"})
+    except Exception as e:
+        return jsonify({"success":False,"message":str(e)})
+
+@app.route("/api/reports/<int:report_id>/like", methods=["POST"])
+def like_report(report_id):
+    try:
+        conn = get_db()
+        if DATABASE_URL:
+            cur = conn.cursor()
+            cur.execute("UPDATE reports SET likes = likes + 1 WHERE id = %s", (report_id,))
+        else:
+            cur = conn.cursor()
+            cur.execute("UPDATE reports SET likes = likes + 1 WHERE id = ?", (report_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"success":True})
+    except Exception as e:
+        return jsonify({"success":False})
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(run_all_crawlers,"interval",hours=6)
