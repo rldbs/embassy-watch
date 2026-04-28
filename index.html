@@ -807,23 +807,27 @@ async function load(){
   try{
     const r=await fetch(`${API}/api/countries`);
     const j=await r.json();
-    if(data.length>0&&Notification.permission==='granted'){
-      j.data.forEach(nc=>{
-        if(!favs.includes(nc.country_name))return;
-        const oc=data.find(c=>c.country_name===nc.country_name);
-        if(oc&&oc.level!==nc.level)new Notification(`🚨 ${nc.country_name}`,{body:`${oc.level} → ${nc.level}`,icon:`https://flagcdn.com/w40/${CODE[nc.country_name]||'un'}.png`});
-      });
-    }
+    try{
+      if(data.length>0&&Notification.permission==='granted'){
+        j.data.forEach(nc=>{
+          if(!favs.includes(nc.country_name))return;
+          const oc=data.find(c=>c.country_name===nc.country_name);
+          if(oc&&oc.level!==nc.level)new Notification(`🚨 ${nc.country_name}`,{body:`${oc.level} → ${nc.level}`,icon:`https://flagcdn.com/w40/${CODE[nc.country_name]||'un'}.png`});
+        });
+      }
+    }catch(e){}
     data=j.data||[];
     document.getElementById('s1').textContent=data.filter(c=>c.level==='위험').length;
     document.getElementById('s2').textContent=data.filter(c=>c.level==='주의요망').length;
     document.getElementById('s3').textContent=data.filter(c=>c.level==='안전').length;
-    const dang=data.filter(c=>c.level==='위험');
-    if(dang.length){document.getElementById('alertBox').textContent=`🚨 ${dang.slice(0,5).map(c=>c.country_name).join(', ')} 등 ${dang.length}개국 위험 단계`;document.getElementById('alertBox').style.display='block';}
-    render();
-    if(mapOK)updateMarkers();
-    if(tab==='fav')renderFav();
-    updateViralBanner();
+    try{
+      const dang=data.filter(c=>c.level==='위험');
+      if(dang.length){document.getElementById('alertBox').textContent=`🚨 ${dang.slice(0,5).map(c=>c.country_name).join(', ')} 등 ${dang.length}개국 위험 단계`;document.getElementById('alertBox').style.display='block';}
+    }catch(e){}
+    try{render();}catch(e){console.error('render error:',e);}
+    try{if(mapOK)updateMarkers();}catch(e){}
+    try{if(tab==='fav')renderFav();}catch(e){}
+    try{updateViralBanner();}catch(e){}
   }catch(e){
     document.getElementById('list').innerHTML='<div class="empty">⚠️ 서버에 연결할 수 없어요<br><small>app.py가 실행 중인지 확인하세요</small></div>';
   }
