@@ -123,6 +123,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .report-like:hover{color:var(--red)}
 .report-like.liked{color:var(--red)}
 .report-empty{text-align:center;padding:1.5rem;color:#aaa;font-size:13px}
+
+.evac-section{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px;margin-bottom:12px}
+.evac-title{font-size:13px;font-weight:700;color:#c2410c;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.evac-item{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #fed7aa}
+.evac-item:last-child{border-bottom:none}
+.evac-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center}
+.evac-info{flex:1}
+.evac-label{font-size:11px;color:#9a3412;font-weight:600;margin-bottom:2px}
+.evac-value{font-size:13px;color:#1c1917;line-height:1.4}
+.evac-value a{color:#c2410c;text-decoration:none;font-weight:600}
+.evac-value a:hover{text-decoration:underline}
+.safe-countries{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.safe-chip{padding:3px 10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:20px;font-size:11px;color:#166534;font-weight:500}
 </style>
 </head>
 <body>
@@ -200,6 +213,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="msec">
       <div class="msec-title" id="T_mHist">📊 경보 변동 히스토리</div>
       <div id="mHist"><div class="loading"><div class="spin"></div></div></div>
+    </div>
+    <div id="evacSection" class="msec" style="display:none">
+      <div id="evacContent"></div>
     </div>
     <div class="msec">
       <div class="msec-title">📢 현지 제보</div>
@@ -399,6 +415,52 @@ function openM(c){
   }).join('');
   document.getElementById('overlay').classList.add('open');
   document.body.style.overflow='hidden';
+  // 대피 정보 렌더링
+  const evacKey = c.country_name_en || c.country_name;
+  const evac = EVAC_INFO[evacKey];
+  if(evac) {
+    document.getElementById('evacSection').style.display = 'block';
+    const safeChips = evac.safe.map(s => `<span class="safe-chip">✈️ ${s}</span>`).join('');
+    document.getElementById('evacContent').innerHTML = `
+      <div class="evac-section">
+        <div class="evac-title">🚨 긴급 대피 정보</div>
+        <div class="evac-item">
+          <div class="evac-icon">📞</div>
+          <div class="evac-info">
+            <div class="evac-label">한국 대사관 긴급연락</div>
+            <div class="evac-value"><a href="tel:${evac.phone}">${evac.phone}</a></div>
+          </div>
+        </div>
+        <div class="evac-item">
+          <div class="evac-icon">📍</div>
+          <div class="evac-info">
+            <div class="evac-label">대사관 주소</div>
+            <div class="evac-value">${evac.address}</div>
+          </div>
+        </div>
+        <div class="evac-item">
+          <div class="evac-icon">🏃</div>
+          <div class="evac-info">
+            <div class="evac-label">대피 방법</div>
+            <div class="evac-value">${evac.method.replace(/\n/g,'<br>')}</div>
+          </div>
+        </div>
+        <div class="evac-item">
+          <div class="evac-icon">🛡️</div>
+          <div class="evac-info">
+            <div class="evac-label">인근 안전 국가</div>
+            <div class="evac-value"><div class="safe-countries">${safeChips}</div></div>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:8px;background:#fff;border-radius:8px;text-align:center">
+          <span style="font-size:11px;color:#9a3412">📱 24시간 영사콜센터: </span>
+          <a href="tel:+82-2-3210-0404" style="font-size:13px;font-weight:700;color:#c2410c">+82-2-3210-0404</a>
+        </div>
+      </div>`;
+  } else {
+    document.getElementById('evacSection').style.display = 'none';
+  }
+
   // 저장된 닉네임 불러오기
   const savedNick = localStorage.getItem('reportNick');
   if(savedNick) document.getElementById('reportNick').value = savedNick;
@@ -433,6 +495,117 @@ function openM(c){
     }).catch(()=>{document.getElementById('mHist').innerHTML=`<div style="color:#aaa;font-size:13px;padding:8px 0">히스토리를 불러올 수 없어요</div>`;});
 }
 
+
+const EVAC_INFO = {
+  "Ukraine": {
+    phone: "+380-44-246-3759",
+    address: "우크라이나 키이우시 볼로디미르스카 45번지",
+    method: "1. 즉시 대사관 또는 영사관에 연락\n2. 육로: 폴란드(크라코프), 헝가리(부다페스트) 방면 이동\n3. 항공편 불가 시 기차/버스로 국경 이동\n4. 재외국민 등록 필수 (영사콜센터 연락)",
+    safe: ["폴란드", "헝가리", "루마니아", "슬로바키아"]
+  },
+  "Russia": {
+    phone: "+7-495-728-1520",
+    address: "러시아 모스크바 플라트니체스키 페레울록 14번지",
+    method: "1. 대사관 연락 후 귀국 일정 협의\n2. 직항 항공편 이용 (인천행)\n3. 경유: 핀란드, 터키 경유 귀국 가능\n4. 육로: 핀란드 방면 이동 가능",
+    safe: ["핀란드", "에스토니아", "라트비아"]
+  },
+  "Sudan": {
+    phone: "+249-183-771-700",
+    address: "수단 하르툼 카파 3구역 블록11 10번지",
+    method: "1. 즉시 대사관 긴급연락\n2. 항공편: 에티오피아 아디스아바바 경유\n3. 육로: 이집트 카이로 방면 이동\n4. 영사콜센터 24시간 연락 가능",
+    safe: ["이집트", "에티오피아", "케냐"]
+  },
+  "Haiti": {
+    phone: "+509-2813-0950",
+    address: "아이티 포르토프랭스 투르조 거리 138번지",
+    method: "1. 대사관 긴급연락 후 지시 따르기\n2. 항공편: 도미니카공화국 산토도밍고 경유\n3. 육로: 도미니카공화국 국경 방면 이동\n4. 무장단체 구역 절대 통과 금지",
+    safe: ["도미니카공화국", "자메이카", "쿠바"]
+  },
+  "Afghanistan": {
+    phone: "현재 대사관 운영 중단",
+    address: "카불 대사관 운영 중단 (2021년 철수)",
+    method: "1. 영사콜센터 24시간 연락: +82-2-3210-0404\n2. 파키스탄 이슬라마바드 대사관으로 연락\n3. 항공편: 파키스탄, UAE 경유 귀국\n4. 탈레반 검문소 주의",
+    safe: ["파키스탄", "타지키스탄", "우즈베키스탄"]
+  },
+  "Syria": {
+    phone: "현재 대사관 운영 중단",
+    address: "다마스쿠스 대사관 운영 중단",
+    method: "1. 영사콜센터 24시간 연락: +82-2-3210-0404\n2. 요르단 암만 대사관으로 연락\n3. 항공편: 레바논, 요르단 경유 귀국\n4. 분쟁지역 절대 접근 금지",
+    safe: ["요르단", "터키", "레바논"]
+  },
+  "Yemen": {
+    phone: "현재 대사관 운영 중단",
+    address: "사나 대사관 운영 중단",
+    method: "1. 영사콜센터 24시간 연락: +82-2-3210-0404\n2. 오만 무스카트 대사관으로 연락\n3. 항공편: 오만, UAE 경유 귀국\n4. 후티 반군 지역 접근 금지",
+    safe: ["오만", "UAE", "사우디아라비아"]
+  },
+  "Somalia": {
+    phone: "현재 대사관 운영 중단",
+    address: "모가디슈 대사관 운영 중단",
+    method: "1. 영사콜센터 24시간 연락: +82-2-3210-0404\n2. 케냐 나이로비 대사관으로 연락\n3. 항공편: 케냐, 에티오피아 경유 귀국\n4. 알샤바브 지역 절대 접근 금지",
+    safe: ["케냐", "에티오피아", "지부티"]
+  },
+  "Libya": {
+    phone: "현재 대사관 운영 중단",
+    address: "트리폴리 대사관 운영 중단",
+    method: "1. 영사콜센터 24시간 연락: +82-2-3210-0404\n2. 튀니지 튀니스 대사관으로 연락\n3. 항공편: 튀니지, 이집트 경유 귀국\n4. 무장단체 구역 절대 통과 금지",
+    safe: ["튀니지", "이집트", "몰타"]
+  },
+  "Iraq": {
+    phone: "+964-7901-909-870",
+    address: "이라크 바그다드 자디리야 구역",
+    method: "1. 대사관 긴급연락\n2. 항공편: 요르단 암만, UAE 경유 귀국\n3. 쿠르드 지역(에르빌) 상대적 안전\n4. IS 및 민병대 지역 절대 접근 금지",
+    safe: ["요르단", "쿠웨이트", "터키"]
+  },
+  "Israel": {
+    phone: "+972-3-606-0500",
+    address: "이스라엘 텔아비브 하야르콘 거리 85번지",
+    method: "1. 대사관 긴급연락\n2. 항공편: 텔아비브 벤구리온 공항 이용\n3. 가자지구 및 레바논 접경 절대 접근 금지\n4. 경보 사이렌 시 즉시 대피소 이동",
+    safe: ["요르단", "키프로스", "이집트"]
+  },
+  "North Korea": {
+    phone: "대사관 없음 (미수교국)",
+    address: "평양 대사관 없음",
+    method: "1. 한국 국민 방문 불가 지역\n2. 긴급 시 영사콜센터: +82-2-3210-0404\n3. 중국 베이징 대사관으로 연락\n4. 불법 입국 시 억류 위험",
+    safe: ["중국", "러시아"]
+  },
+  "Iran": {
+    phone: "+98-21-2253-2752",
+    address: "이란 테헤란 파르다바르즈 거리 37번지",
+    method: "1. 대사관 긴급연락\n2. 항공편: 테헤란 이맘호메이니 공항 이용\n3. 미국·이스라엘 관련 장소 접근 금지\n4. 시위대 집결지 접근 금지",
+    safe: ["터키", "아르메니아", "조지아"]
+  },
+  "South Sudan": {
+    phone: "+211-92-000-3364",
+    address: "남수단 주바 쿠아줄루나탈 로드",
+    method: "1. 대사관 긴급연락\n2. 항공편: 케냐 나이로비, 에티오피아 경유\n3. 육로 이동 극도로 위험\n4. 무장세력 활동지역 절대 접근 금지",
+    safe: ["케냐", "우간다", "에티오피아"]
+  },
+  "Mali": {
+    phone: "현재 대사관 운영 중단",
+    address: "바마코 대사관 운영 중단",
+    method: "1. 영사콜센터 24시간 연락: +82-2-3210-0404\n2. 세네갈 다카르 대사관으로 연락\n3. 항공편: 세네갈, 모로코 경유 귀국\n4. 북부 사헬 지역 절대 접근 금지",
+    safe: ["세네갈", "모로코", "코트디부아르"]
+  },
+  "Venezuela": {
+    phone: "+58-212-991-0411",
+    address: "베네수엘라 카라카스 라플로리다 구역",
+    method: "1. 대사관 긴급연락\n2. 항공편: 파나마, 콜롬비아 경유 귀국\n3. 야간 외출 절대 금지\n4. 현금 소지 최소화",
+    safe: ["콜롬비아", "파나마", "트리니다드토바고"]
+  },
+  "Belarus": {
+    phone: "+375-17-306-0147",
+    address: "벨라루스 민스크 플라토노바 거리 1번지",
+    method: "1. 대사관 긴급연락\n2. 항공편: 폴란드 바르샤바, 리투아니아 경유\n3. 시위 및 집회 장소 접근 금지\n4. 육로: 폴란드, 리투아니아 방면 이동",
+    safe: ["폴란드", "리투아니아", "라트비아"]
+  },
+  "Myanmar (Burma)": {
+    phone: "+95-1-527-142",
+    address: "미얀마 양곤 노스오칼라파 타운십",
+    method: "1. 대사관 긴급연락\n2. 항공편: 양곤 국제공항 이용 (운항 축소)\n3. 태국 방콕 경유 귀국 가능\n4. 군사시설 및 시위대 절대 접근 금지",
+    safe: ["태국", "인도", "중국"]
+  }
+};
 let currentCountry=null;
 let currentCountryEn = null;
 let likedReports = JSON.parse(localStorage.getItem('likedReports') || '[]');
