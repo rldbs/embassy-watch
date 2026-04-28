@@ -317,7 +317,27 @@ function setLang(l){
   lang=l;localStorage.setItem('lang',l);
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('on'));
   event.target.classList.add('on');
-  applyT();render();
+  
+function shareApp(type) {
+  const url = 'https://web-production-bbd77.up.railway.app';
+  const danger = data.filter(c => c.level === '위험').length;
+  const text = '🌍 RunAway - 대사관 철수 현황\n현재 ' + danger + '개국 위험 단계!\n여행 전 꼭 확인하세요 ✈️\n\n' + url;
+  if(type === 'kakao') {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('📋 복사됨! 카카오톡에 붙여넣기 하세요');
+    }).catch(() => showToast('링크: ' + url));
+  } else if(type === 'copy') {
+    if(navigator.share) {
+      navigator.share({title:'RunAway', text:'현재 ' + danger + '개국 위험 단계!', url:url}).catch(()=>{});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('🔗 링크가 복사됐어요!');
+      }).catch(() => showToast('링크: ' + url));
+    }
+  }
+}
+
+applyT();render();
 }
 function applyT(){
   const t=TX[lang];
@@ -806,6 +826,26 @@ async function load(){
     updateViralBanner();
   }catch(e){
     document.getElementById('list').innerHTML='<div class="empty">⚠️ 서버에 연결할 수 없어요<br><small>app.py가 실행 중인지 확인하세요</small></div>';
+  }
+}
+
+
+function shareApp(type) {
+  const url = 'https://web-production-bbd77.up.railway.app';
+  const danger = data.filter(c => c.level === '위험').length;
+  const text = '🌍 RunAway - 대사관 철수 현황\n현재 ' + danger + '개국 위험 단계!\n여행 전 꼭 확인하세요 ✈️\n\n' + url;
+  if(type === 'kakao') {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('📋 복사됨! 카카오톡에 붙여넣기 하세요');
+    }).catch(() => showToast('링크: ' + url));
+  } else if(type === 'copy') {
+    if(navigator.share) {
+      navigator.share({title:'RunAway', text:'현재 ' + danger + '개국 위험 단계!', url:url}).catch(()=>{});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('🔗 링크가 복사됐어요!');
+      }).catch(() => showToast('링크: ' + url));
+    }
   }
 }
 
