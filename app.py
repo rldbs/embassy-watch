@@ -17,7 +17,8 @@ app.json.ensure_ascii = False
 
 @app.after_request
 def after_request(response):
-    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    if response.headers.get('Content-Type', '').startswith('application/json'):
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
     return response
 # ── DB 연결 ──
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
