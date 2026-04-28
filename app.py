@@ -275,6 +275,44 @@ def build_summary(data):
 def index():
     return send_from_directory(".", "index.html")
 
+@app.route("/og-image.png")
+def og_image():
+    """동적 OG 이미지 생성 (SVG → PNG 변환 없이 SVG로 서빙)"""
+    data = build_summary(get_all_data())
+    danger = [c for c in data if c["level"] == "위험"]
+    warn = [c for c in data if c["level"] == "주의요망"]
+    safe = [c for c in data if c["level"] == "안전"]
+
+    danger_names = ", ".join([c["country_name"] for c in danger[:4]])
+    if len(danger) > 4:
+        danger_names += f" 등 {len(danger)}개국"
+
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#111111"/>
+  <rect x="0" y="0" width="1200" height="8" fill="#ef4444"/>
+  <text x="60" y="120" font-family="Arial" font-size="72" font-weight="bold" fill="white">🌍 RunAway</text>
+  <text x="60" y="180" font-family="Arial" font-size="32" fill="#94a3b8">전 세계 대사관 철수 현황 실시간 모니터</text>
+  <rect x="60" y="220" width="320" height="140" rx="16" fill="#2d1515"/>
+  <text x="120" y="275" font-family="Arial" font-size="52" font-weight="bold" fill="#ef4444">{len(danger)}</text>
+  <text x="185" y="275" font-family="Arial" font-size="28" fill="#ef4444">개국</text>
+  <text x="120" y="320" font-family="Arial" font-size="24" fill="#fca5a5">위험 단계</text>
+  <rect x="420" y="220" width="320" height="140" rx="16" fill="#2d1e0f"/>
+  <text x="480" y="275" font-family="Arial" font-size="52" font-weight="bold" fill="#f97316">{len(warn)}</text>
+  <text x="545" y="275" font-family="Arial" font-size="28" fill="#f97316">개국</text>
+  <text x="480" y="320" font-family="Arial" font-size="24" fill="#fdba74">주의요망</text>
+  <rect x="780" y="220" width="320" height="140" rx="16" fill="#0f2d1a"/>
+  <text x="840" y="275" font-family="Arial" font-size="52" font-weight="bold" fill="#22c55e">{len(safe)}</text>
+  <text x="905" y="275" font-family="Arial" font-size="28" fill="#22c55e">개국</text>
+  <text x="840" y="320" font-family="Arial" font-size="24" fill="#86efac">안전</text>
+  <text x="60" y="430" font-family="Arial" font-size="26" fill="#ef4444">🚨 위험: {danger_names}</text>
+  <rect x="0" y="530" width="1200" height="100" fill="#1a1a1a"/>
+  <text x="60" y="590" font-family="Arial" font-size="28" fill="#64748b">web-production-bbd77.up.railway.app</text>
+  <text x="900" y="590" font-family="Arial" font-size="28" fill="#64748b">여행 전 꼭 확인하세요 ✈️</text>
+</svg>"""
+
+    from flask import Response
+    return Response(svg, mimetype='image/svg+xml')
+
 @app.route("/api/countries")
 def get_countries():
     global _cache
