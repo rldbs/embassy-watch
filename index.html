@@ -829,7 +829,8 @@ async function load(){
     try{if(tab==='fav')renderFav();}catch(e){}
     try{updateViralBanner();}catch(e){}
   }catch(e){
-    document.getElementById('list').innerHTML='<div class="empty">⚠️ 오류: '+e.message+'<br>'+e.toString()+'</div>';
+    alert('오류: '+e.message);
+    document.getElementById('list').innerHTML='<div class="empty">⚠️ 오류: '+e.message+'</div>';
   }
 }
 
