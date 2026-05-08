@@ -805,6 +805,7 @@ function closeM(e){
 
 async function load(){
   try{
+    alert('load 시작: ' + API);
     const r=await fetch(`${API}/api/countries`);
     const j=await r.json();
     try{
