@@ -430,7 +430,8 @@ function openM(c){
       +'<div class="evac-item"><div class="evac-icon">🛡️</div><div class="evac-info"><div class="evac-label">인근 안전 국가</div><div class="evac-value"><div class="safe-countries">'+safeChips+'</div></div></div></div>'
       +'<div style="margin-top:10px;padding:8px;background:#fff;border-radius:8px;text-align:center"><span style="font-size:11px;color:#9a3412">📱 24시간 영사콜센터: </span><a href="tel:+82-2-3210-0404" style="font-size:13px;font-weight:700;color:#c2410c">+82-2-3210-0404</a></div></div>';
   } else {
-    document.getElementById('evacSection').style.display='none';
+    document.getElementById('evacSection').style.display='block';
+    document.getElementById('evacContent').innerHTML='<div class="evac-section"><div class="evac-title">ℹ️ 여행 안전 정보</div><div class="evac-item"><div class="evac-icon">🌐</div><div class="evac-info"><div class="evac-label">한국 외교부 해외안전여행</div><div class="evac-value"><a href="https://www.0404.go.kr" target="_blank">www.0404.go.kr</a></div></div></div><div class="evac-item"><div class="evac-icon">📞</div><div class="evac-info"><div class="evac-label">24시간 영사콜센터</div><div class="evac-value"><a href="tel:+82-2-3210-0404">+82-2-3210-0404</a></div></div></div></div>';
   }
   var savedNick=localStorage.getItem('reportNick');
   if(savedNick)document.getElementById('reportNick').value=savedNick;
