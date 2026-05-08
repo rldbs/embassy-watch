@@ -14,6 +14,15 @@ app = Flask(__name__)
 app.json.ensure_ascii = False
 CORS(app)
 
+app.config['JSON_AS_ASCII'] = False
+app.json.ensure_ascii = False
+
+@app.after_request
+def after_request(response):
+    if 'application/json' in response.headers.get('Content-Type', ''):
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    return response
+
 # ── DB 연결 ──
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
