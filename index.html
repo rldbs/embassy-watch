@@ -862,8 +862,10 @@ function shareApp(type) {
 
 applyT();
 if(Notification.permission==='default'&&favs.length>0)document.getElementById('notifBox').style.display='flex';
-load();
-setInterval(load,5*60*1000);
+document.addEventListener('DOMContentLoaded', function() {
+  load();
+  setInterval(load,5*60*1000);
+});
 </script>
 <div class="toast" id="toast"></div>
 </body>
