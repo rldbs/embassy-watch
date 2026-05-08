@@ -829,7 +829,7 @@ async function load(){
     try{if(tab==='fav')renderFav();}catch(e){}
     try{updateViralBanner();}catch(e){}
   }catch(e){
-    document.getElementById('list').innerHTML='<div class="empty">⚠️ 서버에 연결할 수 없어요<br><small>app.py가 실행 중인지 확인하세요</small></div>';
+    document.getElementById('list').innerHTML='<div class="empty">⚠️ 오류: '+e.message+'<br>'+e.toString()+'</div>';
   }
 }
 
