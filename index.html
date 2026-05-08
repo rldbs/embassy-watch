@@ -440,7 +440,11 @@ function openM(c){
     .then(function(r){return r.json();}).then(function(d){
       if(!d.data||!d.data.length){document.getElementById('mNews').innerHTML='<div style="color:#aaa;font-size:13px;padding:8px 0">최근 뉴스가 없어요</div>';return;}
       document.getElementById('mNews').innerHTML=d.data.map(function(n){
-        return '<div class="news-item"><div class="news-title"><a href="'+n.link+'" target="_blank">'+n.title+'</a></div><div class="news-meta">'+(n.source||'')+'</div></div>';
+        var dateStr = '';
+        if(n.pub_date){
+          var d = new Date(n.pub_date);
+          dateStr = d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate();}
+          return '<div class="news-item"><div class="news-title"><a href="'+n.link+'" target="_blank">'+n.title+'</a></div><div class="news-meta">'+(n.source||'')+' · '+dateStr+'</div></div>';
       }).join('');
     }).catch(function(){document.getElementById('mNews').innerHTML='<div style="color:#aaa;font-size:13px">뉴스를 불러올 수 없어요</div>';});
   document.getElementById('mHist').innerHTML='<div class="loading"><div class="spin"></div></div>';
