@@ -824,7 +824,7 @@ async function load(){
       const dang=data.filter(c=>c.level==='위험');
       if(dang.length){document.getElementById('alertBox').textContent=`🚨 ${dang.slice(0,5).map(c=>c.country_name).join(', ')} 등 ${dang.length}개국 위험 단계`;document.getElementById('alertBox').style.display='block';}
     }catch(e){}
-    try{render();}catch(e){console.error('render error:',e);}
+    try{render();}catch(e){document.getElementById('list').innerHTML='<div class="empty">렌더링 오류: '+e.message+'</div>';}
     try{if(mapOK)updateMarkers();}catch(e){}
     try{if(tab==='fav')renderFav();}catch(e){}
     try{updateViralBanner();}catch(e){}
