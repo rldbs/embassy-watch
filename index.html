@@ -322,8 +322,8 @@ function setLang(l){
   lang=l;localStorage.setItem('lang',l);
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('on'));
   event.target.classList.add('on');
-  
-function shareApp(type) {
+  applyT();render();
+}
   const url = 'https://web-production-bbd77.up.railway.app';
   const danger = data.filter(c => c.level === '위험').length;
   const text = '🌍 RunAway - 대사관 철수 현황\n현재 ' + danger + '개국 위험 단계!\n여행 전 꼭 확인하세요 ✈️\n\n' + url;
@@ -862,10 +862,8 @@ function shareApp(type) {
 
 applyT();
 if(Notification.permission==='default'&&favs.length>0)document.getElementById('notifBox').style.display='flex';
-document.addEventListener('DOMContentLoaded', function() {
-  load();
-  setInterval(load,5*60*1000);
-});
+load();
+setInterval(load,5*60*1000);
 </script>
 <div class="toast" id="toast"></div>
 </body>
