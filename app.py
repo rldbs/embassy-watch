@@ -12,7 +12,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.json.ensure_ascii = False
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
 
 app.config['JSON_AS_ASCII'] = False
 app.json.ensure_ascii = False
