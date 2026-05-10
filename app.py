@@ -353,7 +353,7 @@ def get_news(country_name):
 
     try:
         en_name = EN_NAME.get(country_name, country_name)
-        query = f"{en_name} 2026"
+        query = f"{en_name} war military conflict embassy evacuation 2026"
         url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=en&gl=US&ceid=US:en&tbs=qdr:m"
         res = requests.get(url, timeout=8, headers={"User-Agent":"Mozilla/5.0"})
         root = ET.fromstring(res.content)
