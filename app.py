@@ -355,25 +355,54 @@ def get_news(country_name):
 
     try:
         en_name = EN_NAME.get(country_name, country_name)
+        items = []
         if lang_param == 'ko':
             ko_name = KO_NAME.get(en_name, country_name)
             query = f"{ko_name} 전쟁 OR 분쟁 OR 대사관 OR 철수"
             url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=ko&gl=KR&ceid=KR:ko"
+            res = requests.get(url, timeout=8, headers={"User-Agent":"Mozilla/5.0"})
+            root = ET.fromstring(res.content)
+            for item in root.findall(".//item")[:5]:
+                items.append({
+                    "title": item.findtext("title",""),
+                    "link": item.findtext("link",""),
+                    "pub_date": item.findtext("pubDate",""),
+                    "source": item.findtext("source","")
+                })
+            # 한국어 뉴스가 3개 미만이면 영어 뉴스 추가
+            if len(items) < 3:
+                query2 = f"{en_name} war military conflict embassy evacuation 2026"
+                url2 = f"https://news.google.com/rss/search?q={requests.utils.quote(query2)}&hl=en&gl=US&ceid=US:en"
+                res2 = requests.get(url2, timeout=8, headers={"User-Agent":"Mozilla/5.0"})
+                root2 = ET.fromstring(res2.content)
+                for item in root2.findall(".//item")[:5-len(items)]:
+                    items.append({
+                        "title": item.findtext("title",""),
+                        "link": item.findtext("link",""),
+                        "pub_date": item.findtext("pubDate",""),
+                        "source": item.findtext("source","")
+                    })
         else:
             query = f"{en_name} war military conflict embassy evacuation 2026"
             url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=en&gl=US&ceid=US:en&tbs=qdr:m"
-        res = requests.get(url, timeout=8, headers={"User-Agent":"Mozilla/5.0"})
-        root = ET.fromstring(res.content)
-        items = []
-        for item in root.findall(".//item")[:5]:
-            items.append({
-                "title": item.findtext("title",""),
-                "link": item.findtext("link",""),
-                "pub_date": item.findtext("pubDate",""),
-                "source": item.findtext("source","")
-            })
+            res = requests.get(url, timeout=8, headers={"User-Agent":"Mozilla/5.0"})
+            root = ET.fromstring(res.content)
+            for item in root.findall(".//item")[:5]:
+                items.append({
+                    "title": item.findtext("title",""),
+                    "link": item.findtext("link",""),
+                    "pub_date": item.findtext("pubDate",""),
+                    "source": item.findtext("source","")
+                })
         # 캐시 저장
-        _news_cache[cache_key] = {"data": items, "at": now}
+        # 날짜순 정렬
+        def parse_date(item):
+            try:
+                from email.utils import parsedate_to_datetime
+                return parsedate_to_datetime(item.get("pub_date",""))
+            except:
+                return datetime.min
+        items.sort(key=parse_date, reverse=True)
         return jsonify({"success":True,"data":items})
     except Exception as e:
         return jsonify({"success":False,"data":[]})
