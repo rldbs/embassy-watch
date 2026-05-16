@@ -355,7 +355,6 @@ def get_news(country_name):
 
     try:
         en_name = EN_NAME.get(country_name, country_name)
-        lang_param = request.args.get('lang', 'en')
         if lang_param == 'ko':
             query = f"{country_name} 대사관 전쟁 분쟁 2026"
             url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=ko&gl=KR&ceid=KR:ko"
