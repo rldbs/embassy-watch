@@ -348,8 +348,8 @@ def get_news(country_name):
     now = time.time()
 
     # 캐시 확인 (1시간)
-    cache_key = f"{country_name}_{lang_param}"
     lang_param = request.args.get('lang', 'ko')
+    cache_key = f"{country_name}_{lang_param}"
     if cache_key in _news_cache and (now - _news_cache[cache_key]["at"]) < NEWS_TTL:
         return jsonify({"success":True,"data":_news_cache[cache_key]["data"],"cached":True})
 
