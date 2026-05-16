@@ -403,6 +403,7 @@ def get_news(country_name):
             except:
                 return datetime.min
         items.sort(key=parse_date, reverse=True)
+        _news_cache[cache_key] = {"data": items, "at": now}
         return jsonify({"success":True,"data":items})
     except Exception as e:
         return jsonify({"success":False,"data":[]})
