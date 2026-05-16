@@ -348,8 +348,10 @@ def get_news(country_name):
     now = time.time()
 
     # 캐시 확인 (1시간)
-    if country_name in _news_cache and (now - _news_cache[country_name]["at"]) < NEWS_TTL:
-        return jsonify({"success":True,"data":_news_cache[country_name]["data"],"cached":True})
+    cache_key = f"{country_name}_{lang_param}"
+    lang_param = request.args.get('lang', 'ko')
+    if cache_key in _news_cache and (now - _news_cache[cache_key]["at"]) < NEWS_TTL:
+        return jsonify({"success":True,"data":_news_cache[cache_key]["data"],"cached":True})
 
     try:
         en_name = EN_NAME.get(country_name, country_name)
@@ -371,7 +373,7 @@ def get_news(country_name):
                 "source": item.findtext("source","")
             })
         # 캐시 저장
-        _news_cache[country_name] = {"data": items, "at": now}
+        _news_cache[cache_key] = {"data": items, "at": now}
         return jsonify({"success":True,"data":items})
     except Exception as e:
         return jsonify({"success":False,"data":[]})
